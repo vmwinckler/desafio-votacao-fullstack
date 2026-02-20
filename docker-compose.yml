@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # API Spring Boot (Backend)
+  api-votacao:
+    # Utilizando JDK para permitir a compilação a quente do código mapeado.
+    image: eclipse-temurin:21-jdk-alpine
+    container_name: api-votacao
+    working_dir: /app
+
+    # Compila e executa a aplicação Spring Boot
+    command: sh -c "chmod +x mvnw && ./mvnw clean spring-boot:run"
+    volumes:
+      - /desafio-votacao-fullstack/assembleia-api:/app
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/db_assembleia
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=cc7f11485cafdd8140139aeef844e7cc
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - WinckNet
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-votacao.rule=Host(`api-teste.wincktech.com.br`)"
+      - "traefik.http.routers.api-votacao.entrypoints=websecure" 
+      - "traefik.http.routers.api-votacao.tls.certresolver=myresolver" 
+      - "traefik.http.services.api-votacao.loadbalancer.server.port=8080"
+
+  # Front-end (React)
+  front-votacao:
+    # Repositório Node.js para servir aplicação em modo de desenvolvimento (Vite)
+    image: node:20-alpine
+    container_name: front-votacao
+    working_dir: /app
+    
+    # Instala as dependências e executa o servidor web Vite via rede
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 80"
+    volumes:
+      - /desafio-votacao-fullstack/assembleia-front:/app
+    environment:
+      # Aponta a base do Axios para o proxy do próprio Vite (usando o caminho relativo)
+      - VITE_API_URL=/api/v1
+    networks:
+      - WinckNet
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.front-votacao.rule=Host(`teste.wincktech.com.br`)" 
+      - "traefik.http.routers.front-votacao.entrypoints=websecure"
+      - "traefik.http.routers.front-votacao.tls.certresolver=myresolver"
+      - "traefik.http.services.front-votacao.loadbalancer.server.port=80"
+
+networks:
+  WinckNet:
+    external: true
